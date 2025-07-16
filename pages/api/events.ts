@@ -1,5 +1,5 @@
-// ✅ DIGITAL PAISAGISMO CAPI V6 - ATUALIZADA
-// Proxy Meta CAPI com TODAS as boas práticas implementadas + validação fbp/fbc
+// ✅ DIGITAL PAISAGISMO CAPI V6 - LEAD COMPLETO
+// Proxy Meta CAPI com captação de nome, e-mail, telefone e sobrenome com hash SHA-256
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
@@ -8,6 +8,10 @@ import zlib from "zlib";
 const PIXEL_ID = "1142320931265624";
 const ACCESS_TOKEN = "EAAQfmxkTTZCcBPLhKvYsZALHTMSuDkSuOZCBoaIbPepL6jnlIU1nME7WQKM1z3z7HRkQZCCjWNBtN8aDEvZBtXei5bVYgYsjrWKDGhxLCoMDLNr4i0WXDmruHXbgr8z5P4ZBzJWCceb1d3M0mFSrzu1qZBm2yKs3IlsSTTh14MiiGD546da2rcePNWNMZCtZAjQZDZD";
 const META_URL = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
+
+function hashSHA256(value: string) {
+  return crypto.createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
+}
 
 const RATE_LIMIT = 30;
 const rateLimitMap = new Map();
@@ -32,15 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
   const userAgent = req.headers["user-agent"] || "";
 
-  console.log("🔄 Requisição recebida:", { ip, userAgent, contentLength: req.headers["content-length"] });
-
   const ALLOWED_ORIGINS = [
     "https://www.digitalpaisagismo.com.br",
     "https://cap.digitalpaisagismo.com.br",
     "https://atendimento.digitalpaisagismo.com.br",
     "http://localhost:3000"
   ];
-
   const origin = req.headers.origin;
   res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS.includes(origin) ? origin : "https://www.digitalpaisagismo.com.br");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -59,19 +60,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (!req.body?.data || !Array.isArray(req.body.data)) {
-      console.log("❌ Payload inválido:", req.body);
       return res.status(400).json({ error: "Payload inválido - campo 'data' obrigatório" });
     }
-    if (req.body.data.length > 20) return res.status(400).json({ error: "Máximo 20 eventos por requisição" });
-    if (Buffer.byteLength(JSON.stringify(req.body)) > 1024 * 1024) return res.status(413).json({ error: "Payload muito grande - máximo 1MB" });
 
     const enrichedData = req.body.data.map((event: any) => {
       const sessionId = event.session_id || "";
-      const externalId = sessionId ? crypto.createHash("sha256").update(sessionId).digest("hex") : "";
+      const externalId = sessionId ? hashSHA256(sessionId) : "";
       const eventId = event.event_id || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
       const eventSourceUrl = event.event_source_url || "https://www.digitalpaisagismo.com.br";
       const eventTime = event.event_time || Math.floor(Date.now() / 1000);
       const actionSource = event.action_source || "website";
+
+      const email = event.user_data?.email || "";
+      const phone = event.user_data?.phone || "";
+      const first_name = event.user_data?.first_name || "";
+      const last_name = event.user_data?.last_name || "";
 
       const customData = {
         value: event.custom_data?.value ?? 0,
@@ -88,23 +91,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         custom_data: customData,
         user_data: {
           external_id: externalId,
+          em: email ? hashSHA256(email) : undefined,
+          ph: phone ? hashSHA256(phone.replace(/\D/g, "")) : undefined,
+          fn: first_name ? hashSHA256(first_name) : undefined,
+          ln: last_name ? hashSHA256(last_name) : undefined,
           client_ip_address: ip,
           client_user_agent: userAgent,
-          fbp: typeof event.user_data?.fbp === "string" && event.user_data.fbp.startsWith("fb.")
-            ? event.user_data.fbp
-            : undefined,
-          fbc: typeof event.user_data?.fbc === "string" && event.user_data.fbc.startsWith("fb.")
-            ? event.user_data.fbc
-            : undefined
+          fbp: typeof event.user_data?.fbp === "string" && event.user_data.fbp.startsWith("fb.") ? event.user_data.fbp : undefined,
+          fbc: typeof event.user_data?.fbc === "string" && event.user_data.fbc.startsWith("fb.") ? event.user_data.fbc : undefined
         }
       };
     });
 
     const payload = { data: enrichedData };
-    console.log("🔄 Enviando evento para Meta CAPI...");
-    console.log("📦 Payload:", JSON.stringify(payload));
-    console.log("📊 Pixel ID:", PIXEL_ID);
-
     const shouldCompress = Buffer.byteLength(JSON.stringify(payload)) > 2048;
     const body = shouldCompress ? zlib.gzipSync(JSON.stringify(payload)) : JSON.stringify(payload);
     const headers = {
@@ -128,15 +127,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const data = await response.json();
     const responseTime = Date.now() - startTime;
 
-    console.log("✅ Resposta da Meta:", {
-      status: response.status,
-      responseTime: `${responseTime}ms`,
-      eventsReceived: data.events_received,
-      messages: data.messages,
-      compression_used: shouldCompress,
-      payload_size: Buffer.byteLength(JSON.stringify(payload))
-    });
-
     if (!response.ok) {
       return res.status(response.status).json({
         error: "Erro da Meta",
@@ -157,7 +147,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   } catch (error: any) {
     console.error("❌ Erro no Proxy CAPI:", error);
-    if (error.name === 'AbortError') {
+    if (error.name === "AbortError") {
       return res.status(408).json({ error: "Timeout ao enviar evento para a Meta", timeout_ms: 8000 });
     }
     res.status(500).json({ error: "Erro interno no servidor CAPI." });
