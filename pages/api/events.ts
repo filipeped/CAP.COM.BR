@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           : req.socket?.remoteAddress || undefined,
       client_user_agent: req.headers["user-agent"] || undefined,
       fbp: fbp || undefined,
-      fbc: fbc || undefined,
+      fbc: typeof fbc === "string" && fbc.startsWith("fb.") ? fbc : undefined,
     };
 
     const enhancedPayload = {
@@ -71,4 +71,3 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     res.status(500).json({ error: "Erro interno no servidor CAPI." });
   }
 }
- 
