@@ -1,5 +1,5 @@
-// ✅ DIGITAL PAISAGISMO CAPI V6 - LEAD COMPLETO
-// Proxy Meta CAPI com captação de nome, e-mail, telefone e sobrenome com hash SHA-256
+// ✅ DIGITAL PAISAGISMO CAPI V6.1 - LEAD CORRIGIDO
+// Corrigido: event_name, event_source_url dinâmico, deduplicação garantida
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
@@ -35,6 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const startTime = Date.now();
   const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
   const userAgent = req.headers["user-agent"] || "";
+  const origin = req.headers.origin;
 
   const ALLOWED_ORIGINS = [
     "https://www.digitalpaisagismo.com.br",
@@ -42,12 +43,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     "https://atendimento.digitalpaisagismo.com.br",
     "http://localhost:3000"
   ];
-  const origin = req.headers.origin;
-  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS.includes(origin) ? origin : "https://www.digitalpaisagismo.com.br");
+  res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS.includes(origin!) ? origin! : "https://www.digitalpaisagismo.com.br");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
   res.setHeader("Access-Control-Allow-Credentials", "true");
-
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("Referrer-Policy", "no-referrer");
@@ -67,7 +66,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const sessionId = event.session_id || "";
       const externalId = sessionId ? hashSHA256(sessionId) : "";
       const eventId = event.event_id || `evt_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
-      const eventSourceUrl = event.event_source_url || "https://www.digitalpaisagismo.com.br";
+      const eventName = event.event_name || "Lead";
+      const eventSourceUrl = event.event_source_url || origin || req.headers.referer || "https://www.digitalpaisagismo.com.br";
       const eventTime = event.event_time || Math.floor(Date.now() / 1000);
       const actionSource = event.action_source || "website";
 
@@ -83,7 +83,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       };
 
       return {
-        ...event,
+        event_name: eventName,
         event_id: eventId,
         event_time: eventTime,
         event_source_url: eventSourceUrl,
