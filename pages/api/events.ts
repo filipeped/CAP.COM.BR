@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
 
 const PIXEL_ID = "1142320931265624";
-const ACCESS_TOKEN = "EAAQfmxkTTZCcBPKseK7aMXRymZBlmaBcxYDZAi6msJWMZCKzkn0EAmNqKYWJvO7UZBzptrIJv4Sm6eZB6JYhwGqzKUaKZCfdTojLqlQpfplibkSZAMwK2YYiZAQbV1xJhdzebn8AIBk4ovTvkNSZBhG6oujGjITo2uSUY6P96mfFz9f6OXKEWX9FczbNDBuQefdQZDZD";
+const ACCESS_TOKEN = "EAAQfmxkTTZCcBPBw2U2QsYCzvY0Bm8aZApTbpcoZAtwpAiBVoAJfj98Ou4ZCk8XOjFmbaxChZAJspGSYYyIH5tdWhlm2NAvZC01YTCb53IUdn38VTDL8rZCwd4ZBuxhu7BjAryeZAexILwyVTS9rHOZBtUkWYEfQ8vnQCkMM1WVFUjf9fA4tCTEpqdPbgVPLWoQQZDZD";
 const META_URL = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
 
 function hashSHA256(value: string): string {
