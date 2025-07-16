@@ -1,5 +1,5 @@
-// ✅ DIGITAL PAISAGISMO CAPI V6.1 - LEAD CORRIGIDO
-// Corrigido: event_name, event_source_url dinâmico, deduplicação garantida
+// ✅ DIGITAL PAISAGISMO CAPI V6.1 - LEAD CORRIGIDO E OTIMIZADO
+// Corrigido: event_name fixo, event_source_url dinâmico, user_data em arrays para máxima compatibilidade
 
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
@@ -90,11 +90,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         action_source: actionSource,
         custom_data: customData,
         user_data: {
-          external_id: externalId,
-          em: email ? hashSHA256(email) : undefined,
-          ph: phone ? hashSHA256(phone.replace(/\D/g, "")) : undefined,
-          fn: first_name ? hashSHA256(first_name) : undefined,
-          ln: last_name ? hashSHA256(last_name) : undefined,
+          external_id: externalId ? [externalId] : undefined,
+          em: email ? [hashSHA256(email)] : undefined,
+          ph: phone ? [hashSHA256(phone.replace(/\D/g, ""))] : undefined,
+          fn: first_name ? [hashSHA256(first_name)] : undefined,
+          ln: last_name ? [hashSHA256(last_name)] : undefined,
           client_ip_address: ip,
           client_user_agent: userAgent,
           fbp: typeof event.user_data?.fbp === "string" && event.user_data.fbp.startsWith("fb.") ? event.user_data.fbp : undefined,
