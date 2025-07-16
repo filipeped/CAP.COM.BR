@@ -4,19 +4,17 @@ import crypto from "crypto";
 const PIXEL_ID = "1142320931265624";
 const ACCESS_TOKEN = "EAAQfmxkTTZCcBPJqdYzaTyZB5WWFIMaXGDF9WhWWbgbO4jhifEM5l25TvjYzaBPT3QoZBiYG5cIxJnpHIQrxZCX7HUOlXcXX5yrCbdJIOD8fBcZAIpM9QSwiGo4gYTZA3AAtdrM5V38LLt4td6oW6ou6eCGzecRZBfSIev4yH258aQEZBdR3gBrgFrQZBAOoJTQZDZD";
 const META_URL = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
-const DEFAULT_FALLBACK_URL = "https://www.digitalpaisagismo.com.br";
 
 function hashSHA256(value: string): string {
   return crypto.createHash("sha256").update(value.toLowerCase().trim()).digest("hex");
 }
 
-// Basic schema validation for the incoming payload
+// Validação básica do payload recebido
 function validatePayload(payload: any): boolean {
   if (!payload || !payload.data || !Array.isArray(payload.data) || payload.data.length === 0) {
     return false;
   }
-  // You can add more specific validation for each event object within the 'data' array if needed
-  // For example, checking for required fields in each event.
+  // Pode adicionar validações mais específicas para cada evento, se necessário
   return true;
 }
 
@@ -29,7 +27,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
   if (!PIXEL_ID || !ACCESS_TOKEN) {
-    console.error("❌ Variáveis META_PIXEL_ID ou META_ACCESS_TOKEN não configuradas. Por favor, preencha-as.");
+    console.error("❌ Variáveis META_PIXEL_ID ou META_ACCESS_TOKEN não configuradas.");
     return res.status(500).json({ error: "Configuração do servidor incompleta." });
   }
 
@@ -43,7 +41,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const getUserData = () => ({
       em: email ? hashSHA256(email) : undefined,
-      ph: phone ? hashSHA256(phone) : undefined,
+      ph: phone ? hashSHA256(phone.replace(/\D/g, "")) : undefined, // Higienização do telefone
       fn: first_name ? hashSHA256(first_name) : undefined,
       ln: last_name ? hashSHA256(last_name) : undefined,
       external_id: session_id ? hashSHA256(session_id) : undefined,
@@ -61,14 +59,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (event.event_source_url) return event.event_source_url;
       if (req.headers.referer) return req.headers.referer;
       if (req.headers.origin) return req.headers.origin;
-      return DEFAULT_FALLBACK_URL;
+      return "https://www.digitalpaisagismo.com.br"; // URL padrão de fallback
     };
 
     const getEnhancedPayload = (event: any) => ({
       ...event,
       event_source_url: getEventSourceUrl(event),
       action_source: "website",
-      event_id: event.event_id || `${Date.now()}-${Math.random()}`,
+      event_id: event.event_id || `ev-${session_id || Date.now()}-${event.event_name}`,
       event_time: event.event_time || Math.floor(Date.now() / 1000),
       user_data: getUserData()
     });
@@ -78,6 +76,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
 
     console.log("🔄 Enviando evento para Meta...");
+    // Para debug detalhado, descomente a linha abaixo:
+    // console.log(JSON.stringify(enhancedPayload, null, 2));
+
     const fbResponse = await fetch(`${META_URL}?access_token=${ACCESS_TOKEN}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
