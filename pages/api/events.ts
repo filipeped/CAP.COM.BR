@@ -48,7 +48,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           event.event_source_url ||
           req.headers.referer ||
           req.headers.origin ||
-          "https://www.digitalpaisagismo.com",
+          "https://www.digitalpaisagismo.com.br",
         action_source: "website",
         event_id: event.event_id || `${Date.now()}-${Math.random()}`,
         event_time: event.event_time || Math.floor(Date.now() / 1000),
