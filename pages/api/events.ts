@@ -1,73 +1,106 @@
-import type { NextApiRequest, NextApiResponse } from "next";
-import crypto from "crypto";
 
-const PIXEL_ID = "1142320931265624";
-const ACCESS_TOKEN = "EAAQfmxkTTZCcBPL7x4Ap1LdXyFRQoWk5bMaBRhi3urT1PebSdYmiM3D2ZB4kG7zF9YMO3gtU5I4WnVeN9ZCFMf7QUkGudvuAwVBOSDCveNXJazZCWOJlzAP8nSZCzPKasx4Pe60o5kvsZBvIyrFibFYYkX46Njsau9wdhcIt8qfycQTs1OW2RGhBUBLGbwHAZDZD";
-const META_URL = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
+import { useEffect, useState } from "react";
 
-function hashSHA256(value: string): string {
-  return crypto.createHash("sha256").update(value.toLowerCase().trim()).digest("hex");
-}
+export default function Home() {
+  const [status, setStatus] = useState("⏳ Enviando evento de teste...");
+  const [responseData, setResponseData] = useState<any>(null);
+  const [timestamp, setTimestamp] = useState<string>("");
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "*");
+  const sendTestEvent = async () => {
+    const now = new Date();
+    setTimestamp(now.toLocaleString("pt-BR"));
+    setStatus("⏳ Enviando evento de teste...");
 
-  if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+    const event = {
+      event_name: "Lead",
+      event_time: Math.floor(Date.now() / 1000),
+      action_source: "website",
+      event_source_url: "https://www.digitalpaisagismo.com",
+      user_data: {
+        external_id: "dec28dba1ef8f7a974d0daa5fb417e886d608ff870dea037176fafd3ef931045",
+        client_ip_address: "177.155.123.123",
+        client_user_agent: navigator.userAgent,
+        fbp: "fb.1.1751360590432.213448171908285443",
+        fbc: "fb.1.1751360590432.IwAR3T_Exemplo"
+      },
+      custom_data: {
+        value: 900,
+        currency: "BRL",
+        content_name: "LeadFromForm",
+        content_type: "form",
+        content_category: "lead",
+        diagnostic_mode: true,
+        triggered_by: "manual_test"
+      }
+    };
 
-  try {
-    if (!req.body || !req.body.data || !Array.isArray(req.body.data)) {
-      console.log("❌ Payload inválido:", req.body);
-      return res.status(400).json({ error: "Payload inválido - campo 'data' deve ser um array" });
+    const payload = {
+      data: [event],
+      pixel_id: "1802124647065004",
+      access_token: "EAAQfmxkTTZCcBPKseK7aMXRymZBlmaBcxYDZAi6msJWMZCKzkn0EAmNqKYWJvO7UZBzptrIJv4Sm6eZB6JYhwGqzKUaKZCfdTojLqlQpfplibkSZAMwK2YYiZAQbV1xJhdzebn8AIBk4ovTvkNSZBhG6oujGjITo2uSUY6P96mfFz9f6OXKEWX9FczbNDBuQefdQZDZD"
+    };
+
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const json = await res.json();
+      setResponseData(json);
+
+      if (json.events_received) {
+        setStatus("✅ Evento recebido com sucesso pela Meta via proxy.");
+      } else if (json.error) {
+        setStatus("❌ Erro retornado pela Meta.");
+      } else {
+        setStatus("⚠️ Evento enviado, mas sem confirmação clara da Meta.");
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus("❌ Erro na conexão com o proxy.");
     }
+  };
 
-    const { session_id, email, phone, first_name, last_name, fbp, fbc } = req.body;
+  useEffect(() => {
+    sendTestEvent();
+  }, []);
 
-    const userData = {
-      em: email ? hashSHA256(email) : undefined,
-      ph: phone ? hashSHA256(phone) : undefined,
-      fn: first_name ? hashSHA256(first_name) : undefined,
-      ln: last_name ? hashSHA256(last_name) : undefined,
-      external_id: session_id ? hashSHA256(session_id) : undefined,
-      client_ip_address: Array.isArray(req.headers["x-forwarded-for"])
-        ? req.headers["x-forwarded-for"][0]
-        : typeof req.headers["x-forwarded-for"] === "string"
-          ? req.headers["x-forwarded-for"].split(",")[0].trim()
-          : req.socket?.remoteAddress || undefined,
-      client_user_agent: req.headers["user-agent"] || undefined,
-      fbp: fbp || undefined,
-      fbc: fbc || undefined,
-    };
+  return (
+    <div style={{ fontFamily: "sans-serif", padding: "40px", maxWidth: "800px", margin: "0 auto" }}>
+      <h2>🔍 Diagnóstico do Proxy CAPI</h2>
+      <p><strong>Status:</strong> {status}</p>
+      <p><strong>Horário:</strong> {timestamp}</p>
 
-    const enhancedPayload = {
-      data: req.body.data.map((event: any) => ({
-        ...event,
-        event_source_url:
-          event.event_source_url ||
-          req.headers.referer ||
-          req.headers.origin ||
-          "https://www.digitalpaisagismo.com.br",
-        action_source: "website",
-        event_id: event.event_id || `${Date.now()}-${Math.random()}`,
-        event_time: event.event_time || Math.floor(Date.now() / 1000),
-        user_data: userData
-      }))
-    };
+      <button
+        onClick={sendTestEvent}
+        style={{
+          padding: "10px 20px",
+          marginTop: "20px",
+          backgroundColor: "#0070f3",
+          color: "white",
+          border: "none",
+          borderRadius: "4px",
+          cursor: "pointer"
+        }}
+      >
+        🔄 Reenviar evento de teste
+      </button>
 
-    console.log("🔄 Enviando evento para Meta...");
-    const fbResponse = await fetch(`${META_URL}?access_token=${ACCESS_TOKEN}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(enhancedPayload)
-    });
-
-    const result = await fbResponse.json();
-    console.log("✅ Resposta da Meta:", result);
-    res.status(fbResponse.status).json(result);
-  } catch (err) {
-    console.error("❌ Erro interno:", err);
-    res.status(500).json({ error: "Erro interno no servidor CAPI." });
-  }
+      <h3 style={{ marginTop: "30px" }}>📦 Resposta completa:</h3>
+      <pre
+        style={{
+          backgroundColor: "#f4f4f4",
+          padding: "20px",
+          borderRadius: "8px",
+          maxHeight: "400px",
+          overflowY: "auto",
+          fontSize: "14px"
+        }}
+      >
+        {responseData ? JSON.stringify(responseData, null, 2) : "Aguardando resposta..."}
+      </pre>
+    </div>
+  );
 }
