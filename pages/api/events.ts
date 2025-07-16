@@ -4,9 +4,20 @@ import crypto from "crypto";
 const PIXEL_ID = "1142320931265624";
 const ACCESS_TOKEN = "EAAQfmxkTTZCcBPJqdYzaTyZB5WWFIMaXGDF9WhWWbgbO4jhifEM5l25TvjYzaBPT3QoZBiYG5cIxJnpHIQrxZCX7HUOlXcXX5yrCbdJIOD8fBcZAIpM9QSwiGo4gYTZA3AAtdrM5V38LLt4td6oW6ou6eCGzecRZBfSIev4yH258aQEZBdR3gBrgFrQZBAOoJTQZDZD";
 const META_URL = `https://graph.facebook.com/v19.0/${PIXEL_ID}/events`;
+const DEFAULT_FALLBACK_URL = "https://www.digitalpaisagismo.com.br";
 
 function hashSHA256(value: string): string {
   return crypto.createHash("sha256").update(value.toLowerCase().trim()).digest("hex");
+}
+
+// Basic schema validation for the incoming payload
+function validatePayload(payload: any): boolean {
+  if (!payload || !payload.data || !Array.isArray(payload.data) || payload.data.length === 0) {
+    return false;
+  }
+  // You can add more specific validation for each event object within the 'data' array if needed
+  // For example, checking for required fields in each event.
+  return true;
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -17,15 +28,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
+  if (!PIXEL_ID || !ACCESS_TOKEN) {
+    console.error("❌ Variáveis META_PIXEL_ID ou META_ACCESS_TOKEN não configuradas. Por favor, preencha-as.");
+    return res.status(500).json({ error: "Configuração do servidor incompleta." });
+  }
+
   try {
-    if (!req.body || !req.body.data || !Array.isArray(req.body.data)) {
+    if (!validatePayload(req.body)) {
       console.log("❌ Payload inválido:", req.body);
-      return res.status(400).json({ error: "Payload inválido - campo 'data' deve ser um array" });
+      return res.status(400).json({ error: "Payload inválido - campo 'data' deve ser um array e não pode ser vazio" });
     }
 
     const { session_id, email, phone, first_name, last_name, fbp, fbc } = req.body;
 
-    const userData = {
+    const getUserData = () => ({
       em: email ? hashSHA256(email) : undefined,
       ph: phone ? hashSHA256(phone) : undefined,
       fn: first_name ? hashSHA256(first_name) : undefined,
@@ -39,21 +55,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       client_user_agent: req.headers["user-agent"] || undefined,
       fbp: fbp || undefined,
       fbc: fbc || undefined,
+    });
+
+    const getEventSourceUrl = (event: any) => {
+      if (event.event_source_url) return event.event_source_url;
+      if (req.headers.referer) return req.headers.referer;
+      if (req.headers.origin) return req.headers.origin;
+      return DEFAULT_FALLBACK_URL;
     };
 
+    const getEnhancedPayload = (event: any) => ({
+      ...event,
+      event_source_url: getEventSourceUrl(event),
+      action_source: "website",
+      event_id: event.event_id || `${Date.now()}-${Math.random()}`,
+      event_time: event.event_time || Math.floor(Date.now() / 1000),
+      user_data: getUserData()
+    });
+
     const enhancedPayload = {
-      data: req.body.data.map((event: any) => ({
-        ...event,
-        event_source_url:
-          event.event_source_url ||
-          req.headers.referer ||
-          req.headers.origin ||
-          "https://www.digitalpaisagismo.com.br",
-        action_source: "website",
-        event_id: event.event_id || `${Date.now()}-${Math.random()}`,
-        event_time: event.event_time || Math.floor(Date.now() / 1000),
-        user_data: userData
-      }))
+      data: req.body.data.map(getEnhancedPayload)
     };
 
     console.log("🔄 Enviando evento para Meta...");
@@ -64,11 +85,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const result = await fbResponse.json();
-    console.log("✅ Resposta da Meta:", result);
-    res.status(fbResponse.status).json(result);
+    
+    if (fbResponse.ok) {
+      console.log("✅ Resposta da Meta:", result);
+      res.status(fbResponse.status).json(result);
+    } else {
+      console.error("❌ Erro da API da Meta:", result);
+      res.status(fbResponse.status).json({ error: "Erro da API da Meta", details: result });
+    }
+
   } catch (err) {
     console.error("❌ Erro interno:", err);
     res.status(500).json({ error: "Erro interno no servidor CAPI." });
   }
 }
- 
