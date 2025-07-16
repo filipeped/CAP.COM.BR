@@ -1,5 +1,6 @@
-// ✅ DIGITAL PAISAGISMO CAPI V6 - 100% COMPLETA
-// Proxy Meta CAPI com TODAS as boas práticas implementadas
+// ✅ DIGITAL PAISAGISMO CAPI V6 - ATUALIZADA
+// Proxy Meta CAPI com TODAS as boas práticas implementadas + validação fbp/fbc
+
 import type { NextApiRequest, NextApiResponse } from "next";
 import crypto from "crypto";
 import zlib from "zlib";
@@ -89,7 +90,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           external_id: externalId,
           client_ip_address: ip,
           client_user_agent: userAgent,
-          fbp: event.user_data?.fbp || undefined,
+          fbp: typeof event.user_data?.fbp === "string" && event.user_data.fbp.startsWith("fb.")
+            ? event.user_data.fbp
+            : undefined,
           fbc: typeof event.user_data?.fbc === "string" && event.user_data.fbc.startsWith("fb.")
             ? event.user_data.fbc
             : undefined
