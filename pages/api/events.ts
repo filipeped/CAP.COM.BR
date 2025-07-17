@@ -15,7 +15,6 @@ function hashSHA256(value: string) {
     console.warn('⚠️ hashSHA256: Valor inválido:', value);
     return null;
   }
-  
   return crypto.createHash("sha256")
     .update(
       value
@@ -53,11 +52,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const ALLOWED_ORIGINS = [
     "https://www.digitalpaisagismo.com.br",
+    "https://digitalpaisagismo.com.br", // <-- Adicionado domínio sem www
     "https://cap.digitalpaisagismo.com.br",
     "https://atendimento.digitalpaisagismo.com.br",
     "http://localhost:3000"
   ];
-  
+
   res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS.includes(origin!) ? origin! : "https://www.digitalpaisagismo.com.br");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
@@ -93,11 +93,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
       // ✅ CORREÇÃO: Validação robusta do value para eventos de conversão
       let customData = { ...event.custom_data };
-      
+
       if (eventName === 'Lead' || eventName === 'Purchase' || eventName === 'CompleteRegistration') {
         const rawValue = event.custom_data?.value;
         const parsedValue = typeof rawValue === "string" ? Number(rawValue) : rawValue;
-        
+
         if (!isNaN(parsedValue) && parsedValue > 0) {
           customData.value = parsedValue;
           customData.currency = event.custom_data?.currency || "BRL";
@@ -126,9 +126,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         action_source: actionSource,
         custom_data: customData,
         user_data: {
-          // ✅ CORREÇÃO: external_id apenas se válido
+          // ✅ CORREÇÃO: external_id apenas se válido e sempre array
           ...(externalId && { external_id: [externalId] }),
-          // ✅ CORREÇÃO: PII apenas se válido e em arrays
+          // ✅ CORREÇÃO: PII apenas se válido e sempre array
           ...(hashedEmail && { em: [hashedEmail] }),
           ...(hashedPhone && { ph: [hashedPhone] }),
           ...(hashedFirstName && { fn: [hashedFirstName] }),
@@ -178,7 +178,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         data,
         events: enrichedData.length
       });
-      
+
       return res.status(response.status).json({
         error: "Erro da Meta",
         details: data,
