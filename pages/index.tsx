@@ -36,7 +36,7 @@ export default function Home() {
     const payload = {
       data: [event],
       pixel_id: "1142320931265624",
-      access_token: "EAAQfmxkTTZCcBPP9dtByxjkAELCmjysqaf1PPQWO2ARmJfnDNhzng9ZABiWNItvZBZChFsnXMDhFy3vb694ZBCYKazplS3FuZB2ucRPJY34lDWC68920VXZBd9GS3l8PwbHxdEfvsxDrYU5Mk8Y2SBRgNO2TtgZC6oqei0My3gdZAtUjOiGxSCC4UCLmt2Y11IgZDZD"
+      access_token: "EAAQfmxkTTZCcBOx7Rlh6wgZAQYHETf45wf5jknPwae98s3JgV6qZA4YAujlvMnFQE29MY0DWX3pJGeQx04XT0zDuuU7SegnCsCN0lK6LVil4yaelgI7CBPwVVFu4N8Gjl2vsUcvBAgtkPX3dlXtk4wlIeDm6C4XMvGeZBMjRPEZAd6Mpyiz5r2nuu8rcGHAZDZD"
     };
 
     try {
