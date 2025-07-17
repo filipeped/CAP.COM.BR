@@ -55,7 +55,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     "https://digitalpaisagismo.com.br", // <-- Adicionado domínio sem www
     "https://cap.digitalpaisagismo.com.br",
     "https://atendimento.digitalpaisagismo.com.br",
-    "http://localhost:3000"
+    "https://projeto.digitalpaisagismo.com.br",
+    "https://www.projeto.digitalpaisagismo.com.br",
+    "http://localhost:3000",
   ];
 
   res.setHeader("Access-Control-Allow-Origin", ALLOWED_ORIGINS.includes(origin!) ? origin! : "https://www.digitalpaisagismo.com.br");
